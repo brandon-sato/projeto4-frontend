@@ -1,0 +1,112 @@
+*{
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --admin-bg: #111827;
+  --admin-surface: #1f2937;
+  --admin-surface-raised: #273449;
+  --admin-border: #374151;
+  --admin-text: #f3f4f6;
+  --admin-muted: #aab4c3;
+  --admin-accent: #c4a7ff;
+  --admin-accent-strong: #a77bff;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.login-page {
+  min-height: 100vh;
+  padding: 1px 1rem 3rem;
+  background: var(--admin-bg);
+  color: var(--admin-text);
+  font-family: Inter, Arial, sans-serif;
+}
+
+.login-container.container {
+  width: 400px;
+  max-width: 100%;
+  margin: 99px auto 0;
+  padding: 0;
+}
+
+.register-container.container {
+  width: 440px;
+  max-width: 100%;
+  margin: 48px auto 0;
+  padding: 0;
+}
+
+.home-container.container {
+  width: 400px;
+  max-width: 100%;
+  margin: 99px auto 0;
+  padding: 0;
+}
+
+.login-card {
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: 0.375rem;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+}
+
+.login-card .card-header {
+  padding: 0.5rem 1rem;
+  border-color: var(--admin-border);
+  background: var(--admin-surface-raised);
+}
+
+.login-logo {
+  display: block;
+  height: auto;
+}
+
+.login-card .card-body {
+  padding: 1rem;
+}
+
+.register-title {
+  margin: 0 0 0.75rem;
+  color: var(--admin-text);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.login-card .form-label {
+  margin: 10px 0 5px;
+  color: var(--admin-text);
+  font-weight: 700;
+}
+
+.login-card .form-control {
+  min-height: 2.4rem;
+  border-color: var(--admin-border);
+  background: #172033;
+  color: var(--admin-text);
+}
+
+.login-card .form-control:focus {
+  border-color: var(--admin-accent);
+  background: #172033;
+  color: var(--admin-text);
+  box-shadow: 0 0 0 0.2rem rgba(196, 167, 255, 0.2);
+}
+
+.login-button {
+  border-color: var(--admin-accent-strong);
+  background: var(--admin-accent-strong);
+  color: #160d2b;
+  font-weight: 700;
+}
+
+.login-button:hover,
+.login-button:focus {
+  border-color: var(--admin-accent);
+  background: var(--admin-accent);
+  color: #160d2b;
+}
