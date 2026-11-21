@@ -1,21 +1,42 @@
+import type { ComponentType } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
-import Cadastro from "./pages/cadastro";
-import Home from "./pages/home";
+import Cadastro from "./pages/userSignup";
+import AppointmentsPage from "./pages/atendimento";
+import CategoriesPage from "./pages/categoria";
+import ClientsPage from "./pages/cliente";
+import ProfessionalsPage from "./pages/profissional";
+import ProceduresPage from "./pages/procedimento";
+import UsersPage from "./pages/usuario";
 import Login from "./pages/login";
+
+type ProtectedPageProps = {
+  userName: string;
+};
+
+const adminPages: Record<string, ComponentType<ProtectedPageProps>> = {
+  "/categorias": CategoriesPage,
+  "/procedimentos": ProceduresPage,
+  "/clientes": ClientsPage,
+  "/profissionais": ProfessionalsPage,
+  "/usuarios": UsersPage,
+  "/atendimentos": AppointmentsPage,
+};
 
 function App() {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
+  const routePath = path.endsWith("/listar") ? path.slice(0, -7) : path;
 
   if (path === "/cadastro") {
     return <Cadastro />;
   }
 
-  if (path === "/home") {
-    const userName = window.sessionStorage.getItem("lotusUserName");
-    if (userName) {
-      return <Home userName={userName} />;
-    }
+  const pagePath = routePath === "/home" ? "/categorias" : routePath;
+  const AdminPage = adminPages[pagePath];
+  const userName = window.sessionStorage.getItem("lotusUserName");
+
+  if (AdminPage && userName) {
+    return <AdminPage userName={userName} />;
   }
 
   return <Login />;

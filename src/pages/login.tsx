@@ -16,10 +16,14 @@ function Login() {
     setIsSubmitting(true);
 
     try {
-      const response = await api.post<{ user: { name: string } }>("/users/login", {
+      const response = await api.post<{
+        user: { name: string };
+        token: string;
+      }>("/users/login", {
         email: String(formData.get("email") ?? ""),
         password: String(formData.get("password") ?? ""),
       });
+      window.localStorage.setItem("token", response.data.token);
       window.sessionStorage.setItem("lotusUserName", response.data.user.name);
       window.location.assign("/home");
     } catch (error: unknown) {
