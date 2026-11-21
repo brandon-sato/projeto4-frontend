@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { api } from "../api/axion";
-import { getApiErrorMessage } from "../pages/crudUtils";
+import { api } from "../api/axios";
+import { getApiErrorMessage } from "../utils/apiError";
 
 function useRecords<RecordType>(endpoint: string, loadOnMount = true) {
   const [records, setRecords] = useState<RecordType[]>([]);

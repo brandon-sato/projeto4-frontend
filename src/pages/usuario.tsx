@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from "react";
-import { api } from "../api/axion";
+import { api } from "../api/axios";
 import AdminPageLayout from "../components/adminPageLayout";
 import RecordTable from "../components/recordTable";
 import useListingPage from "../hooks/useListingPage";
 import useRecords from "../hooks/useRecords";
-import { getApiErrorMessage } from "./crudUtils";
+import { usuarioSchema } from "../schemas/schemas";
+import { getApiErrorMessage } from "../utils/apiError";
 
 type Usuario = {
   id: number;
@@ -54,17 +55,18 @@ function UsuarioPage({ userName }: { userName: string }) {
     setError("");
     setSuccess("");
 
-    if (form.password !== form.confirmarSenha) {
-      setError("A senha e a confirmação devem ser iguais.");
+    const validation = usuarioSchema.safeParse(form);
+    if (!validation.success) {
+      setError(validation.error.issues[0]?.message ?? "Dados inválidos.");
       return;
     }
 
     try {
       const payload = {
-        name: form.name,
-        email: form.email,
-        cpf: form.cpf,
-        password: form.password,
+        name: validation.data.name,
+        email: validation.data.email,
+        cpf: validation.data.cpf,
+        password: validation.data.password,
       };
       if (editingId === null) {
         await api.post("/users", payload);

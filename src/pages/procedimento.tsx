@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { api } from "../api/axion";
+import { api } from "../api/axios";
 import AdminPageLayout from "../components/adminPageLayout";
 import RecordTable from "../components/recordTable";
 import useListingPage from "../hooks/useListingPage";
 import useRecords from "../hooks/useRecords";
-import { formatCurrency, getApiErrorMessage } from "./crudUtils";
+import { procedimentoSchema } from "../schemas/schemas";
+import { getApiErrorMessage } from "../utils/apiError";
+import { formatCurrency } from "../utils/format";
 
 type Categoria = { id: number; nome: string };
 type Profissional = { id: number; nome: string };
@@ -97,13 +99,19 @@ function ProcedimentoPage({ userName }: { userName: string }) {
     let savedId = editingId;
     let procedureSaved = false;
 
+    const validation = procedimentoSchema.safeParse(form);
+    if (!validation.success) {
+      setError(validation.error.issues[0]?.message ?? "Dados inválidos.");
+      return;
+    }
+
     try {
       const payload = {
-        nome: form.nome,
-        descricao: form.descricao || null,
-        duracaoMinutos: Number(form.duracaoMinutos),
-        preco: Number(form.preco),
-        id_categoria: Number(form.id_categoria),
+        nome: validation.data.nome,
+        descricao: validation.data.descricao || null,
+        duracaoMinutos: validation.data.duracaoMinutos,
+        preco: validation.data.preco,
+        id_categoria: validation.data.id_categoria,
       };
       const response = editingId === null
         ? await api.post<Procedimento>("/procedures", payload)

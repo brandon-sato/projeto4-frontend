@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { api } from "../api/axion";
+import { api } from "../api/axios";
 import AdminPageLayout from "../components/adminPageLayout";
 import RecordTable from "../components/recordTable";
 import useListingPage from "../hooks/useListingPage";
 import useRecords from "../hooks/useRecords";
-import { formatCurrency, formatDateTime, getApiErrorMessage, toDateTimeInput } from "./crudUtils";
+import { atendimentoSchema } from "../schemas/schemas";
+import { getApiErrorMessage } from "../utils/apiError";
+import { formatCurrency, formatDateTime, toDateTimeInput } from "../utils/format";
 
 type Atendimento = {
   id: number;
@@ -110,12 +112,18 @@ function AtendimentoPage({ userName }: { userName: string }) {
     let savedId = editingId;
     let appointmentSaved = false;
 
+    const validation = atendimentoSchema.safeParse(form);
+    if (!validation.success) {
+      setError(validation.error.issues[0]?.message ?? "Dados inválidos.");
+      return;
+    }
+
     try {
       const payload = {
-        id_cliente: Number(form.id_cliente),
-        id_profissional: Number(form.id_profissional),
-        data_atendimento: new Date(form.data_atendimento).toISOString(),
-        valor: Number(form.valor),
+        id_cliente: validation.data.id_cliente,
+        id_profissional: validation.data.id_profissional,
+        data_atendimento: new Date(validation.data.data_atendimento).toISOString(),
+        valor: validation.data.valor,
       };
       const response = editingId === null
         ? await api.post<Atendimento>("/appointments", payload)

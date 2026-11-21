@@ -1,24 +1,8 @@
 import { useState, type FormEvent } from "react";
-import axios from "axios";
 import { Alert, Button, Card, Container, Form } from "react-bootstrap";
-import { api } from "../api/axion";
-
-function isCpfValid(cpf: string): boolean {
-  if (!/^\d{11}$/.test(cpf) || /^(\d)\1{10}$/.test(cpf)) {
-    return false;
-  }
-
-  const digits = [...cpf].map(Number);
-  const calculateDigit = (length: number): number => {
-    const sum = digits
-      .slice(0, length)
-      .reduce((total, digit, index) => total + digit * (length + 1 - index), 0);
-    const remainder = (sum * 10) % 11;
-    return remainder === 10 ? 0 : remainder;
-  };
-
-  return calculateDigit(9) === digits[9] && calculateDigit(10) === digits[10];
-}
+import { api } from "../api/axios";
+import { isCpfValid, signupSchema } from "../schemas/schemas";
+import { getApiErrorMessage } from "../utils/apiError";
 
 function Cadastro() {
   const [password, setPassword] = useState("");
@@ -35,26 +19,28 @@ function Cadastro() {
     setErrorMessage("");
     setSuccessMessage("");
 
-    if (!isCpfValid(cpf)) {
-      setErrorMessage("Informe um CPF válido.");
-      return;
-    }
-
-    if (passwordsDoNotMatch) {
-      setErrorMessage("A senha e a confirmação de senha não coincidem.");
-      return;
-    }
-
     const form = event.currentTarget;
     const formData = new FormData(form);
+    const validation = signupSchema.safeParse({
+      name: String(formData.get("name") ?? ""),
+      email: String(formData.get("email") ?? ""),
+      cpf,
+      password,
+      passwordConfirmation,
+    });
+    if (!validation.success) {
+      setErrorMessage(validation.error.issues[0]?.message ?? "Dados inválidos.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const userData = {
-        name: String(formData.get("name") ?? ""),
-        email: String(formData.get("email") ?? ""),
-        cpf,
-        password,
+        name: validation.data.name,
+        email: validation.data.email,
+        cpf: validation.data.cpf,
+        password: validation.data.password,
       };
 
       await api.post("/users", JSON.stringify(userData), {
@@ -67,13 +53,7 @@ function Cadastro() {
       setCpf("");
       window.setTimeout(() => window.location.assign("/"), 1500);
     } catch (error: unknown) {
-      const responseMessage =
-        axios.isAxiosError(error) && typeof error.response?.data?.message === "string"
-          ? error.response.data.message
-          : null;
-      setErrorMessage(
-        responseMessage ?? "Não foi possível cadastrar o usuário. Tente novamente.",
-      );
+      setErrorMessage(getApiErrorMessage(error, "Não foi possível cadastrar o usuário. Tente novamente."));
     } finally {
       setIsSubmitting(false);
     }

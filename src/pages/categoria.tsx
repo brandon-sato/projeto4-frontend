@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from "react";
-import { api } from "../api/axion";
+import { api } from "../api/axios";
 import AdminPageLayout from "../components/adminPageLayout";
 import RecordTable from "../components/recordTable";
 import useListingPage from "../hooks/useListingPage";
 import useRecords from "../hooks/useRecords";
-import { getApiErrorMessage } from "./crudUtils";
+import { categoriaSchema } from "../schemas/schemas";
+import { getApiErrorMessage } from "../utils/apiError";
 
 type Categoria = {
   id: number;
@@ -43,8 +44,17 @@ function CategoriaPage({ userName }: { userName: string }) {
     setError("");
     setSuccess("");
 
+    const validation = categoriaSchema.safeParse(form);
+    if (!validation.success) {
+      setError(validation.error.issues[0]?.message ?? "Dados inválidos.");
+      return;
+    }
+
     try {
-      const payload = { nome: form.nome, descricao: form.descricao || null };
+      const payload = {
+        nome: validation.data.nome,
+        descricao: validation.data.descricao || null,
+      };
       if (editingId === null) {
         await api.post("/categories", payload);
       } else {

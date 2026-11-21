@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { api } from "../api/axion";
+import { api } from "../api/axios";
 import AdminPageLayout from "../components/adminPageLayout";
 import RecordTable from "../components/recordTable";
 import useListingPage from "../hooks/useListingPage";
 import useRecords from "../hooks/useRecords";
-import { getApiErrorMessage, toDateInput } from "./crudUtils";
+import { profissionalSchema } from "../schemas/schemas";
+import { getApiErrorMessage } from "../utils/apiError";
+import { toDateInput } from "../utils/format";
 
 type Profissional = {
   id: number;
@@ -50,11 +52,17 @@ function ProfissionalPage({ userName }: { userName: string }) {
     setError("");
     setSuccess("");
 
+    const validation = profissionalSchema.safeParse(form);
+    if (!validation.success) {
+      setError(validation.error.issues[0]?.message ?? "Dados inválidos.");
+      return;
+    }
+
     try {
       const payload = {
-        ...form,
-        contato: form.contato || null,
-        especialidade: form.especialidade || null,
+        ...validation.data,
+        contato: validation.data.contato || null,
+        especialidade: validation.data.especialidade || null,
       };
       if (editingId === null) {
         await api.post("/professionals", payload);

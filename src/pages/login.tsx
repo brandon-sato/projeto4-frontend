@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
-import axios from "axios";
 import { Alert, Button, Card, Container, Form } from "react-bootstrap";
-import { api } from "../api/axion";
+import { api } from "../api/axios";
+import { loginSchema } from "../schemas/schemas";
+import { getApiErrorMessage } from "../utils/apiError";
 
 function Login() {
   const [errorMessage, setErrorMessage] = useState("");
@@ -15,25 +16,26 @@ function Login() {
     const formData = new FormData(form);
     setIsSubmitting(true);
 
+    const validation = loginSchema.safeParse({
+      email: String(formData.get("email") ?? ""),
+      password: String(formData.get("password") ?? ""),
+    });
+    if (!validation.success) {
+      setErrorMessage(validation.error.issues[0]?.message ?? "Dados inválidos.");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const response = await api.post<{
         user: { name: string };
         token: string;
-      }>("/users/login", {
-        email: String(formData.get("email") ?? ""),
-        password: String(formData.get("password") ?? ""),
-      });
+      }>("/users/login", validation.data);
       window.localStorage.setItem("token", response.data.token);
       window.sessionStorage.setItem("lotusUserName", response.data.user.name);
       window.location.assign("/home");
     } catch (error: unknown) {
-      const responseMessage =
-        axios.isAxiosError(error) && typeof error.response?.data?.message === "string"
-          ? error.response.data.message
-          : null;
-      setErrorMessage(
-        responseMessage ?? "Não foi possível efetuar o login. Tente novamente.",
-      );
+      setErrorMessage(getApiErrorMessage(error, "Não foi possível efetuar o login. Tente novamente."));
     } finally {
       setIsSubmitting(false);
     }

@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { api } from "../api/axion";
+import { api } from "../api/axios";
 import AdminPageLayout from "../components/adminPageLayout";
 import RecordTable from "../components/recordTable";
 import useListingPage from "../hooks/useListingPage";
 import useRecords from "../hooks/useRecords";
-import { formatDate, getApiErrorMessage, toDateInput } from "./crudUtils";
+import { clienteSchema } from "../schemas/schemas";
+import { getApiErrorMessage } from "../utils/apiError";
+import { formatDate, toDateInput } from "../utils/format";
 
 type Cliente = {
   id: number;
@@ -51,11 +53,16 @@ function ClientePage({ userName }: { userName: string }) {
     setError("");
     setSuccess("");
 
+    const validation = clienteSchema.safeParse(form);
+    if (!validation.success) {
+      setError(validation.error.issues[0]?.message ?? "Dados inválidos.");
+      return;
+    }
+
     try {
       const payload = {
-        ...form,
-        cpf: form.cpf || null,
-        contato: form.contato || null,
+        ...validation.data,
+        contato: validation.data.contato || null,
       };
       if (editingId === null) {
         await api.post("/clients", payload);
