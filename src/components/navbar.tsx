@@ -1,4 +1,5 @@
 const navigationItems = [
+  { path: "/home", label: "Dashboard" },
   { path: "/categorias", label: "Categoria" },
   { path: "/procedimentos", label: "Procedimento" },
   { path: "/clientes", label: "Cliente" },
