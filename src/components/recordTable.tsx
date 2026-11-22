@@ -13,6 +13,8 @@ type RecordTableProps<RecordType extends { id: number }> = {
   isLoading: boolean;
   onEdit: (record: RecordType) => void;
   onDelete: (record: RecordType) => void;
+  canEdit?: (record: RecordType) => boolean;
+  canDelete?: (record: RecordType) => boolean;
 };
 
 function RecordTable<RecordType extends { id: number }>({
@@ -21,6 +23,8 @@ function RecordTable<RecordType extends { id: number }>({
   isLoading,
   onEdit,
   onDelete,
+  canEdit,
+  canDelete,
 }: RecordTableProps<RecordType>) {
   const [page, setPage] = useState(0);
   const pageCount = Math.ceil(records.length / pageSize);
@@ -60,20 +64,24 @@ function RecordTable<RecordType extends { id: number }>({
                     ))}
                     <td>
                       <div className="d-flex justify-content-center gap-2">
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-primary"
-                          onClick={() => onEdit(record)}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => onDelete(record)}
-                        >
-                          Excluir
-                        </button>
+                        {(!canEdit || canEdit(record)) && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-primary"
+                            onClick={() => onEdit(record)}
+                          >
+                            Editar
+                          </button>
+                        )}
+                        {(!canDelete || canDelete(record)) && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger"
+                            onClick={() => onDelete(record)}
+                          >
+                            Excluir
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

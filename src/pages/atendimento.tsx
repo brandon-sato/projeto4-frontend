@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Modal } from "react-bootstrap";
 import { api } from "../api/axios";
 import AdminPageLayout from "../components/adminPageLayout";
 import RecordTable from "../components/recordTable";
@@ -6,7 +7,9 @@ import useListingPage from "../hooks/useListingPage";
 import useRecords from "../hooks/useRecords";
 import { atendimentoSchema } from "../schemas/schemas";
 import { getApiErrorMessage } from "../utils/apiError";
-import { formatCurrency, formatDateTime, toDateTimeInput } from "../utils/format";
+import { formatCurrency, formatDateTime, formatDate } from "../utils/format";
+import { confirmSweetAlert } from "../components/sweetAlertConfirm";
+import { showSweetAlertMessage } from "../components/sweetAlertMessage";
 
 type Atendimento = {
   id: number;
@@ -15,24 +18,31 @@ type Atendimento = {
   data_atendimento: string;
   valor: number | string;
 };
-type Cliente = { id: number; nome: string };
+type Cliente = {
+  id: number;
+  nome: string;
+  dt_nasc: string;
+  cpf: string | null;
+};
 type Profissional = { id: number; nome: string };
-type Procedimento = { id: number; nome: string };
+type Procedimento = { id: number; nome: string; preco: number | string };
 type AtendimentoProcedimento = {
   id_atendimento: number;
   procedimento_id: number;
 };
+type ProcedimentoProfissional = {
+  id_procedimento: number;
+  id_profissional: number;
+};
 type AtendimentoForm = {
   id_cliente: string;
   id_profissional: string;
-  data_atendimento: string;
   valor: string;
 };
 
 const emptyForm: AtendimentoForm = {
   id_cliente: "",
   id_profissional: "",
-  data_atendimento: "",
   valor: "",
 };
 
@@ -43,12 +53,101 @@ function AtendimentoPage({ userName }: { userName: string }) {
   const professionals = useRecords<Profissional>("/professionals");
   const procedures = useRecords<Procedimento>("/procedures");
   const links = useRecords<AtendimentoProcedimento>("/appointment-procedures");
+  const procedureProfessionals = useRecords<ProcedimentoProfissional>("/procedure-professionals");
   const [form, setForm] = useState<AtendimentoForm>(emptyForm);
   const [selectedProcedures, setSelectedProcedures] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [clientSearchField, setClientSearchField] = useState<"nome" | "dt_nasc" | "cpf">("nome");
+  const [clientSearch, setClientSearch] = useState("");
+  const [debouncedClientSearch, setDebouncedClientSearch] = useState("");
+  const [clientSearchPage, setClientSearchPage] = useState(1);
+  const selectedClient = clients.records.find((client) => String(client.id) === form.id_cliente);
+  const availableProcedures = procedures.records.filter((procedure) =>
+    procedureProfessionals.records.some((relation) =>
+      relation.id_procedimento === procedure.id
+      && relation.id_profissional === Number(form.id_profissional),
+    ),
+  );
+
+  function calculateProceduresValue(procedureIds: string[], professionalId: string): string {
+    const total = procedures.records
+      .filter((procedure) =>
+        procedureIds.includes(String(procedure.id))
+        && procedureProfessionals.records.some((relation) =>
+          relation.id_procedimento === procedure.id
+          && relation.id_profissional === Number(professionalId),
+        ),
+      )
+      .reduce((sum, procedure) => sum + Number(procedure.preco), 0);
+
+    return total > 0 ? total.toFixed(2) : "";
+  }
+
+  function handleProfessionalChange(professionalId: string) {
+    setForm({ ...form, id_profissional: professionalId, valor: "" });
+    setSelectedProcedures([]);
+  }
+
+  function handleProcedureChange(procedureId: string, checked: boolean) {
+    const nextProcedures = checked
+      ? [...selectedProcedures, procedureId]
+      : selectedProcedures.filter((id) => id !== procedureId);
+
+    setSelectedProcedures(nextProcedures);
+    setForm({ ...form, valor: calculateProceduresValue(nextProcedures, form.id_profissional) });
+  }
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedClientSearch(clientSearch);
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [clientSearch]);
+
+  const clientSearchResults = debouncedClientSearch.trim() === ""
+    ? []
+    : clients.records
+      .filter((client) => {
+        if (clientSearchField === "nome") {
+          return client.nome.toLocaleLowerCase("pt-BR")
+            .includes(debouncedClientSearch.trim().toLocaleLowerCase("pt-BR"));
+        }
+        if (clientSearchField === "dt_nasc") {
+          return client.dt_nasc.slice(0, 10).includes(debouncedClientSearch.trim());
+        }
+        return (client.cpf ?? "").replace(/\D/g, "").includes(debouncedClientSearch.replace(/\D/g, ""));
+      });
+
+  const clientsPerPage = 10;
+  const clientSearchPageCount = Math.ceil(clientSearchResults.length / clientsPerPage);
+  const paginatedClientResults = clientSearchResults.slice(
+    (clientSearchPage - 1) * clientsPerPage,
+    clientSearchPage * clientsPerPage,
+  );
+
+  useEffect(() => {
+    setClientSearchPage(1);
+  }, [debouncedClientSearch, clientSearchField]);
+
+  useEffect(() => {
+    if (clientSearchPageCount > 0 && clientSearchPage > clientSearchPageCount) {
+      setClientSearchPage(clientSearchPageCount);
+    }
+  }, [clientSearchPage, clientSearchPageCount]);
+
+  function openClientModal() {
+    setClientSearch("");
+    setDebouncedClientSearch("");
+    setIsClientModalOpen(true);
+  }
+
+  function selectClient(client: Cliente) {
+    setForm({ ...form, id_cliente: String(client.id) });
+    setIsClientModalOpen(false);
+  }
   const columns = [
     { label: "ID", render: (record: Atendimento) => record.id },
     {
@@ -79,7 +178,6 @@ function AtendimentoPage({ userName }: { userName: string }) {
     setForm(emptyForm);
     setSelectedProcedures([]);
     setEditingId(null);
-    setError("");
   }
 
   async function synchronizeProcedures(appointmentId: number) {
@@ -106,15 +204,14 @@ function AtendimentoPage({ userName }: { userName: string }) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
-    setSuccess("");
     setIsSubmitting(true);
     let savedId = editingId;
     let appointmentSaved = false;
 
     const validation = atendimentoSchema.safeParse(form);
     if (!validation.success) {
-      setError(validation.error.issues[0]?.message ?? "Dados inválidos.");
+      await showSweetAlertMessage(validation.error.issues[0]?.message ?? "Dados inválidos.", "error");
+      setIsSubmitting(false);
       return;
     }
 
@@ -122,7 +219,7 @@ function AtendimentoPage({ userName }: { userName: string }) {
       const payload = {
         id_cliente: validation.data.id_cliente,
         id_profissional: validation.data.id_profissional,
-        data_atendimento: new Date(validation.data.data_atendimento).toISOString(),
+        data_atendimento: new Date().toISOString(),
         valor: validation.data.valor,
       };
       const response = editingId === null
@@ -132,15 +229,16 @@ function AtendimentoPage({ userName }: { userName: string }) {
       appointmentSaved = true;
 
       await synchronizeProcedures(savedId);
-      setSuccess("Atendimento salvo com sucesso.");
+      await showSweetAlertMessage("Atendimento salvo com sucesso.", "success");
       resetForm();
       await links.reload();
       if (listingPage.isListing) await appointments.reload();
     } catch (requestError: unknown) {
-      setError(
+      await showSweetAlertMessage(
         appointmentSaved
           ? `O atendimento foi salvo, mas não foi possível atualizar os procedimentos associados. ${getApiErrorMessage(requestError, "Tente novamente.")}`
           : getApiErrorMessage(requestError, "Não foi possível salvar o atendimento."),
+        "error",
       );
       if (appointmentSaved && savedId !== null) {
         setEditingId(savedId);
@@ -153,50 +251,43 @@ function AtendimentoPage({ userName }: { userName: string }) {
   }
 
   async function handleDelete(record: Atendimento) {
-    if (!window.confirm(`Deseja excluir o atendimento #${record.id}?`)) {
+    if (!await confirmSweetAlert("Excluir atendimento", `Deseja excluir o atendimento #${record.id}?`)) {
       return;
     }
 
-    setError("");
-    setSuccess("");
     try {
       await api.delete(`/appointments/${record.id}`);
-      setSuccess("Atendimento excluído com sucesso.");
+      await showSweetAlertMessage("Atendimento excluído com sucesso.", "success");
       if (editingId === record.id) {
         resetForm();
       }
       await links.reload();
       if (listingPage.isListing) await appointments.reload();
     } catch (requestError: unknown) {
-      setError(getApiErrorMessage(requestError, "Não foi possível excluir o atendimento."));
+      await showSweetAlertMessage(
+        getApiErrorMessage(requestError, "Não foi possível excluir o atendimento."),
+        "error",
+      );
     }
   }
 
   function beginEdit(record: Atendimento) {
+    const procedureIds = links.records
+      .filter((link) => link.id_atendimento === record.id)
+      .map((link) => String(link.procedimento_id));
+
     setForm({
       id_cliente: String(record.id_cliente),
       id_profissional: String(record.id_profissional),
-      data_atendimento: toDateTimeInput(record.data_atendimento),
-      valor: String(record.valor),
+      valor: calculateProceduresValue(procedureIds, String(record.id_profissional)),
     });
-    setSelectedProcedures(
-      links.records
-        .filter((link) => link.id_atendimento === record.id)
-        .map((link) => String(link.procedimento_id)),
-    );
+    setSelectedProcedures(procedureIds);
     setEditingId(record.id);
-    setError("");
-    setSuccess("");
     listingPage.showForm();
   }
 
   return (
     <AdminPageLayout title="Atendimentos" userName={userName} activePath="/atendimentos">
-      {error && <div className="alert alert-danger">{error}</div>}
-      {[appointments, clients, professionals, procedures, links]
-        .filter((resource) => resource.loadError)
-        .map((resource, index) => <div className="alert alert-danger" key={index}>{resource.loadError}</div>)}
-      {success && <div className="alert alert-success">{success}</div>}
 
       {listingPage.isListing ? (
         <>
@@ -223,18 +314,23 @@ function AtendimentoPage({ userName }: { userName: string }) {
             <div className="row g-3">
               <div className="col-12 col-md-6">
                 <label className="form-label" htmlFor="atendimento-cliente">Cliente</label>
-                <select
-                  className="form-select"
-                  id="atendimento-cliente"
-                  required
-                  value={form.id_cliente}
-                  onChange={(event) => setForm({ ...form, id_cliente: event.target.value })}
-                >
-                  <option value="">Selecione</option>
-                  {clients.records.map((client) => (
-                    <option key={client.id} value={client.id}>{client.nome}</option>
-                  ))}
-                </select>
+                <div className="input-group">
+                  <input
+                    className="form-control"
+                    id="atendimento-cliente"
+                    readOnly
+                    required
+                    value={selectedClient?.nome ?? ""}
+                    placeholder="Nenhum cliente selecionado"
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-outline-primary"
+                    onClick={openClientModal}
+                  >
+                    Selecionar
+                  </button>
+                </div>
               </div>
               <div className="col-12 col-md-6">
                 <label className="form-label" htmlFor="atendimento-profissional">Profissional</label>
@@ -243,24 +339,13 @@ function AtendimentoPage({ userName }: { userName: string }) {
                   id="atendimento-profissional"
                   required
                   value={form.id_profissional}
-                  onChange={(event) => setForm({ ...form, id_profissional: event.target.value })}
+                  onChange={(event) => handleProfessionalChange(event.target.value)}
                 >
                   <option value="">Selecione</option>
                   {professionals.records.map((professional) => (
                     <option key={professional.id} value={professional.id}>{professional.nome}</option>
                   ))}
                 </select>
-              </div>
-              <div className="col-12 col-md-6">
-                <label className="form-label" htmlFor="atendimento-data">Data e horário</label>
-                <input
-                  className="form-control"
-                  id="atendimento-data"
-                  type="datetime-local"
-                  required
-                  value={form.data_atendimento}
-                  onChange={(event) => setForm({ ...form, data_atendimento: event.target.value })}
-                />
               </div>
               <div className="col-12 col-md-6">
                 <label className="form-label" htmlFor="atendimento-valor">Valor (R$)</label>
@@ -278,21 +363,23 @@ function AtendimentoPage({ userName }: { userName: string }) {
               <div className="col-12">
                 <label className="form-label">Procedimentos</label>
                 <div className="admin-relation-options d-flex flex-wrap gap-3 p-3 border rounded">
-                  {procedures.records.length > 0 ? procedures.records.map((procedure) => (
+                  {availableProcedures.length > 0 ? availableProcedures.map((procedure) => (
                     <label className="form-check d-flex align-items-center gap-2" key={procedure.id}>
                       <input
                         className="form-check-input m-0"
                         type="checkbox"
                         checked={selectedProcedures.includes(String(procedure.id))}
-                        onChange={(event) => setSelectedProcedures((current) =>
-                          event.target.checked
-                            ? [...current, String(procedure.id)]
-                            : current.filter((id) => id !== String(procedure.id)),
-                        )}
+                        onChange={(event) =>
+                          handleProcedureChange(String(procedure.id), event.target.checked)
+                        }
                       />
-                      <span>{procedure.nome}</span>
+                      <span>{procedure.nome} — {formatCurrency(procedure.preco)}</span>
                     </label>
-                  )) : <span className="text-secondary">Nenhum procedimento disponível.</span>}
+                  )) : <span className="text-secondary">
+                    {form.id_profissional
+                      ? "Nenhum procedimento disponível para este profissional."
+                      : "Selecione um profissional para ver os procedimentos."}
+                  </span>}
                 </div>
               </div>
             </div>
@@ -313,6 +400,159 @@ function AtendimentoPage({ userName }: { userName: string }) {
         </div>
       </section>
       )}
+      <Modal
+        show={isClientModalOpen}
+        onHide={() => setIsClientModalOpen(false)}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Selecionar cliente</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <fieldset className="mb-3">
+            <legend className="form-label fs-6">Pesquisar por</legend>
+            <div className="d-flex flex-wrap gap-3">
+              <label className="form-check">
+                <input
+                  className="form-check-input"
+                  type="radio"
+                  name="cliente-pesquisa"
+                  checked={clientSearchField === "nome"}
+                  onChange={() => {
+                    setClientSearchField("nome");
+                    setClientSearch("");
+                    setDebouncedClientSearch("");
+                  }}
+                />
+                <span className="form-check-label ms-2">Nome</span>
+              </label>
+              <label className="form-check">
+                <input
+                  className="form-check-input"
+                  type="radio"
+                  name="cliente-pesquisa"
+                  checked={clientSearchField === "dt_nasc"}
+                  onChange={() => {
+                    setClientSearchField("dt_nasc");
+                    setClientSearch("");
+                    setDebouncedClientSearch("");
+                  }}
+                />
+                <span className="form-check-label ms-2">Data de nascimento</span>
+              </label>
+              <label className="form-check">
+                <input
+                  className="form-check-input"
+                  type="radio"
+                  name="cliente-pesquisa"
+                  checked={clientSearchField === "cpf"}
+                  onChange={() => {
+                    setClientSearchField("cpf");
+                    setClientSearch("");
+                    setDebouncedClientSearch("");
+                  }}
+                />
+                <span className="form-check-label ms-2">CPF</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <label className="form-label" htmlFor="cliente-busca">
+            {clientSearchField === "nome"
+              ? "Nome do cliente"
+              : clientSearchField === "dt_nasc"
+                ? "Data de nascimento"
+                : "CPF"}
+          </label>
+          <input
+            className="form-control"
+            id="cliente-busca"
+            type={clientSearchField === "dt_nasc" ? "date" : "text"}
+            inputMode={clientSearchField === "cpf" ? "numeric" : undefined}
+            maxLength={clientSearchField === "cpf" ? 11 : undefined}
+            value={clientSearch}
+            onChange={(event) => {
+              const value = clientSearchField === "cpf"
+                ? event.target.value.replace(/\D/g, "").slice(0, 11)
+                : event.target.value;
+              setClientSearch(value);
+            }}
+            autoComplete="off"
+          />
+
+          {debouncedClientSearch.trim() !== "" && (
+            <div className="list-group mt-2">
+              {paginatedClientResults.length > 0 ? paginatedClientResults.map((client) => (
+                <button
+                  type="button"
+                  className="list-group-item list-group-item-action"
+                  key={client.id}
+                  onClick={() => selectClient(client)}
+                >
+                  <strong>{client.nome}</strong>
+                  <br />
+                  <small className="text-secondary">
+                    CPF: {client.cpf || "—"} | Nascimento: {formatDate(client.dt_nasc)}
+                  </small>
+                </button>
+              )) : (
+                <div className="list-group-item text-secondary">
+                  Nenhum cliente encontrado.
+                </div>
+              )}
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          {clientSearchPageCount > 1 && (
+            <nav aria-label="Paginação dos clientes" className="me-auto">
+              <ul className="pagination mb-0">
+                <li className={`page-item ${clientSearchPage === 1 ? "disabled" : ""}`}>
+                  <button
+                    type="button"
+                    className="page-link"
+                    onClick={() => setClientSearchPage((page) => Math.max(1, page - 1))}
+                    disabled={clientSearchPage === 1}
+                  >
+                    Anterior
+                  </button>
+                </li>
+                {Array.from({ length: clientSearchPageCount }, (_, index) => index + 1).map((page) => (
+                  <li className={`page-item ${clientSearchPage === page ? "active" : ""}`} key={page}>
+                    <button
+                      type="button"
+                      className="page-link"
+                      onClick={() => setClientSearchPage(page)}
+                      aria-current={clientSearchPage === page ? "page" : undefined}
+                    >
+                      {page}
+                    </button>
+                  </li>
+                ))}
+                <li className={`page-item ${clientSearchPage === clientSearchPageCount ? "disabled" : ""}`}>
+                  <button
+                    type="button"
+                    className="page-link"
+                    onClick={() => setClientSearchPage((page) =>
+                      Math.min(clientSearchPageCount, page + 1),
+                    )}
+                    disabled={clientSearchPage === clientSearchPageCount}
+                  >
+                    Próxima
+                  </button>
+                </li>
+              </ul>
+            </nav>
+          )}
+          <button
+            type="button"
+            className="btn btn-outline-secondary"
+            onClick={() => setIsClientModalOpen(false)}
+          >
+            Fechar
+          </button>
+        </Modal.Footer>
+      </Modal>
     </AdminPageLayout>
   );
 }

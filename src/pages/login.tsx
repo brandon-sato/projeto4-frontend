@@ -28,10 +28,11 @@ function Login() {
 
     try {
       const response = await api.post<{
-        user: { name: string };
+        user: { id: number; name: string };
         token: string;
       }>("/users/login", validation.data);
       window.localStorage.setItem("token", response.data.token);
+      window.sessionStorage.setItem("lotusUserId", String(response.data.user.id));
       window.sessionStorage.setItem("lotusUserName", response.data.user.name);
       window.location.assign("/home");
     } catch (error: unknown) {

@@ -6,6 +6,27 @@ import useListingPage from "../hooks/useListingPage";
 import useRecords from "../hooks/useRecords";
 import { usuarioSchema } from "../schemas/schemas";
 import { getApiErrorMessage } from "../utils/apiError";
+import { confirmSweetAlert } from "../components/sweetAlertConfirm";
+import { showSweetAlertMessage } from "../components/sweetAlertMessage";
+
+function getAuthenticatedUserId(): number | null {
+  const token = window.localStorage.getItem("token");
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const payloadPart = token.split(".")[1];
+    if (!payloadPart) {
+      return null;
+    }
+    const base64 = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(window.atob(base64));
+    return typeof payload.id === "number" ? payload.id : null;
+  } catch {
+    return null;
+  }
+}
 
 type Usuario = {
   id: number;
@@ -31,12 +52,11 @@ const emptyForm: UsuarioForm = {
 };
 
 function UsuarioPage({ userName }: { userName: string }) {
-  const { records, isLoading, loadError, reload } = useRecords<Usuario>("/users", false);
+  const { records, isLoading, reload } = useRecords<Usuario>("/users", false);
   const listingPage = useListingPage("/usuarios", reload);
   const [form, setForm] = useState<UsuarioForm>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const authenticatedUserId = getAuthenticatedUserId();
   const columns = [
     { label: "ID", render: (record: Usuario) => record.id },
     { label: "Nome", render: (record: Usuario) => record.name },
@@ -47,17 +67,17 @@ function UsuarioPage({ userName }: { userName: string }) {
   function resetForm() {
     setForm(emptyForm);
     setEditingId(null);
-    setError("");
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
-    setSuccess("");
-
+    if (editingId !== null && authenticatedUserId !== editingId) {
+      await showSweetAlertMessage("Você só pode editar o seu próprio usuário.", "error");
+      return;
+    }
     const validation = usuarioSchema.safeParse(form);
     if (!validation.success) {
-      setError(validation.error.issues[0]?.message ?? "Dados inválidos.");
+      await showSweetAlertMessage(validation.error.issues[0]?.message ?? "Dados inválidos.", "error");
       return;
     }
 
@@ -74,38 +94,51 @@ function UsuarioPage({ userName }: { userName: string }) {
         await api.put(`/users/${editingId}`, payload);
       }
 
-      setSuccess("Usuário salvo com sucesso.");
+      await showSweetAlertMessage("Usuário salvo com sucesso.", "success");
       resetForm();
       if (listingPage.isListing) await reload();
     } catch (requestError: unknown) {
-      setError(getApiErrorMessage(requestError, "Não foi possível salvar o usuário."));
+      await showSweetAlertMessage(
+        getApiErrorMessage(requestError, "Não foi possível salvar o usuário."),
+        "error",
+      );
     }
   }
 
   async function handleDelete(record: Usuario) {
-    if (!window.confirm(`Deseja excluir o usuário ${record.name}?`)) {
+    if (authenticatedUserId !== record.id) {
+      await showSweetAlertMessage("Você só pode excluir o seu próprio usuário.", "error");
       return;
     }
 
-    setError("");
-    setSuccess("");
+    if (!await confirmSweetAlert("Excluir usuário", `Deseja excluir o usuário ${record.name}?`)) {
+      return;
+    }
+
     try {
       await api.delete(`/users/${record.id}`);
-      setSuccess("Usuário excluído com sucesso.");
+      await showSweetAlertMessage("Usuário excluído com sucesso.", "success");
+      if (authenticatedUserId === record.id) {
+        window.localStorage.removeItem("token");
+        window.sessionStorage.removeItem("lotusUserName");
+        window.sessionStorage.removeItem("lotusUserId");
+        window.location.assign("/");
+        return;
+      }
       if (editingId === record.id) {
         resetForm();
       }
       if (listingPage.isListing) await reload();
     } catch (requestError: unknown) {
-      setError(getApiErrorMessage(requestError, "Não foi possível excluir o usuário."));
+      await showSweetAlertMessage(
+        getApiErrorMessage(requestError, "Não foi possível excluir o usuário."),
+        "error",
+      );
     }
   }
 
   return (
     <AdminPageLayout title="Usuários" userName={userName} activePath="/usuarios">
-      {error && <div className="alert alert-danger">{error}</div>}
-      {loadError && <div className="alert alert-danger">{loadError}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
 
       {listingPage.isListing ? (
         <>
@@ -118,6 +151,8 @@ function UsuarioPage({ userName }: { userName: string }) {
             columns={columns}
             records={records}
             isLoading={isLoading}
+            canEdit={(record) => authenticatedUserId === record.id}
+            canDelete={(record) => authenticatedUserId === record.id}
             onEdit={(record) => {
               setForm({
                 name: record.name,
@@ -127,8 +162,6 @@ function UsuarioPage({ userName }: { userName: string }) {
                 confirmarSenha: "",
               });
               setEditingId(record.id);
-              setError("");
-              setSuccess("");
               listingPage.showForm();
             }}
             onDelete={(record) => void handleDelete(record)}

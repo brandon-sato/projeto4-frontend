@@ -84,6 +84,5 @@ export const procedimentoSchema = z.object({
 export const atendimentoSchema = z.object({
   id_cliente: z.coerce.number().int().positive("Selecione um cliente."),
   id_profissional: z.coerce.number().int().positive("Selecione um profissional."),
-  data_atendimento: z.string().min(1, "Informe a data e o horário."),
   valor: z.coerce.number().positive("O valor deve ser maior que zero."),
 });

@@ -7,6 +7,8 @@ import useRecords from "../hooks/useRecords";
 import { procedimentoSchema } from "../schemas/schemas";
 import { getApiErrorMessage } from "../utils/apiError";
 import { formatCurrency } from "../utils/format";
+import { confirmSweetAlert } from "../components/sweetAlertConfirm";
+import { showSweetAlertMessage } from "../components/sweetAlertMessage";
 
 type Categoria = { id: number; nome: string };
 type Profissional = { id: number; nome: string };
@@ -48,8 +50,6 @@ function ProcedimentoPage({ userName }: { userName: string }) {
   const [selectedProfessionals, setSelectedProfessionals] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const columns = [
     { label: "ID", render: (record: Procedimento) => record.id },
     { label: "Nome", render: (record: Procedimento) => record.nome },
@@ -66,7 +66,6 @@ function ProcedimentoPage({ userName }: { userName: string }) {
     setForm(emptyForm);
     setSelectedProfessionals([]);
     setEditingId(null);
-    setError("");
   }
 
   async function synchronizeProfessionals(procedureId: number) {
@@ -93,15 +92,14 @@ function ProcedimentoPage({ userName }: { userName: string }) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
-    setSuccess("");
     setIsSubmitting(true);
     let savedId = editingId;
     let procedureSaved = false;
 
     const validation = procedimentoSchema.safeParse(form);
     if (!validation.success) {
-      setError(validation.error.issues[0]?.message ?? "Dados inválidos.");
+      await showSweetAlertMessage(validation.error.issues[0]?.message ?? "Dados inválidos.", "error");
+      setIsSubmitting(false);
       return;
     }
 
@@ -120,15 +118,16 @@ function ProcedimentoPage({ userName }: { userName: string }) {
       procedureSaved = true;
 
       await synchronizeProfessionals(savedId);
-      setSuccess("Procedimento salvo com sucesso.");
+      await showSweetAlertMessage("Procedimento salvo com sucesso.", "success");
       resetForm();
       await links.reload();
       if (listingPage.isListing) await procedures.reload();
     } catch (requestError: unknown) {
-      setError(
+      await showSweetAlertMessage(
         procedureSaved
           ? `O procedimento foi salvo, mas não foi possível atualizar os profissionais associados. ${getApiErrorMessage(requestError, "Tente novamente.")}`
           : getApiErrorMessage(requestError, "Não foi possível salvar o procedimento."),
+        "error",
       );
       if (procedureSaved && savedId !== null) {
         setEditingId(savedId);
@@ -141,22 +140,23 @@ function ProcedimentoPage({ userName }: { userName: string }) {
   }
 
   async function handleDelete(record: Procedimento) {
-    if (!window.confirm(`Deseja excluir o procedimento ${record.nome}?`)) {
+    if (!await confirmSweetAlert("Excluir procedimento", `Deseja excluir o procedimento ${record.nome}?`)) {
       return;
     }
 
-    setError("");
-    setSuccess("");
     try {
       await api.delete(`/procedures/${record.id}`);
-      setSuccess("Procedimento excluído com sucesso.");
+      await showSweetAlertMessage("Procedimento excluído com sucesso.", "success");
       if (editingId === record.id) {
         resetForm();
       }
       await links.reload();
       if (listingPage.isListing) await procedures.reload();
     } catch (requestError: unknown) {
-      setError(getApiErrorMessage(requestError, "Não foi possível excluir o procedimento."));
+      await showSweetAlertMessage(
+        getApiErrorMessage(requestError, "Não foi possível excluir o procedimento."),
+        "error",
+      );
     }
   }
 
@@ -174,19 +174,11 @@ function ProcedimentoPage({ userName }: { userName: string }) {
         .map((link) => String(link.id_profissional)),
     );
     setEditingId(record.id);
-    setError("");
-    setSuccess("");
     listingPage.showForm();
   }
 
   return (
     <AdminPageLayout title="Procedimentos" userName={userName} activePath="/procedimentos">
-      {error && <div className="alert alert-danger">{error}</div>}
-      {procedures.loadError && <div className="alert alert-danger">{procedures.loadError}</div>}
-      {categories.loadError && <div className="alert alert-danger">{categories.loadError}</div>}
-      {professionals.loadError && <div className="alert alert-danger">{professionals.loadError}</div>}
-      {links.loadError && <div className="alert alert-danger">{links.loadError}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
 
       {listingPage.isListing ? (
         <>

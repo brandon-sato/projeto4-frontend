@@ -7,6 +7,8 @@ import useRecords from "../hooks/useRecords";
 import { profissionalSchema } from "../schemas/schemas";
 import { getApiErrorMessage } from "../utils/apiError";
 import { toDateInput } from "../utils/format";
+import { confirmSweetAlert } from "../components/sweetAlertConfirm";
+import { showSweetAlertMessage } from "../components/sweetAlertMessage";
 
 type Profissional = {
   id: number;
@@ -28,12 +30,10 @@ const emptyForm: ProfissionalForm = {
 };
 
 function ProfissionalPage({ userName }: { userName: string }) {
-  const { records, isLoading, loadError, reload } = useRecords<Profissional>("/professionals", false);
+  const { records, isLoading, reload } = useRecords<Profissional>("/professionals", false);
   const listingPage = useListingPage("/profissionais", reload);
   const [form, setForm] = useState<ProfissionalForm>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const columns = [
     { label: "ID", render: (record: Profissional) => record.id },
     { label: "Nome", render: (record: Profissional) => record.nome },
@@ -44,17 +44,13 @@ function ProfissionalPage({ userName }: { userName: string }) {
   function resetForm() {
     setForm(emptyForm);
     setEditingId(null);
-    setError("");
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
-    setSuccess("");
-
     const validation = profissionalSchema.safeParse(form);
     if (!validation.success) {
-      setError(validation.error.issues[0]?.message ?? "Dados inválidos.");
+      await showSweetAlertMessage(validation.error.issues[0]?.message ?? "Dados inválidos.", "error");
       return;
     }
 
@@ -70,38 +66,39 @@ function ProfissionalPage({ userName }: { userName: string }) {
         await api.put(`/professionals/${editingId}`, payload);
       }
 
-      setSuccess("Profissional salvo com sucesso.");
+      await showSweetAlertMessage("Profissional salvo com sucesso.", "success");
       resetForm();
       if (listingPage.isListing) await reload();
     } catch (requestError: unknown) {
-      setError(getApiErrorMessage(requestError, "Não foi possível salvar o profissional."));
+      await showSweetAlertMessage(
+        getApiErrorMessage(requestError, "Não foi possível salvar o profissional."),
+        "error",
+      );
     }
   }
 
   async function handleDelete(record: Profissional) {
-    if (!window.confirm(`Deseja excluir o profissional ${record.nome}?`)) {
+    if (!await confirmSweetAlert("Excluir profissional", `Deseja excluir o profissional ${record.nome}?`)) {
       return;
     }
 
-    setError("");
-    setSuccess("");
     try {
       await api.delete(`/professionals/${record.id}`);
-      setSuccess("Profissional excluído com sucesso.");
+      await showSweetAlertMessage("Profissional excluído com sucesso.", "success");
       if (editingId === record.id) {
         resetForm();
       }
       if (listingPage.isListing) await reload();
     } catch (requestError: unknown) {
-      setError(getApiErrorMessage(requestError, "Não foi possível excluir o profissional."));
+      await showSweetAlertMessage(
+        getApiErrorMessage(requestError, "Não foi possível excluir o profissional."),
+        "error",
+      );
     }
   }
 
   return (
     <AdminPageLayout title="Profissionais" userName={userName} activePath="/profissionais">
-      {error && <div className="alert alert-danger">{error}</div>}
-      {loadError && <div className="alert alert-danger">{loadError}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
 
       {listingPage.isListing ? (
         <>
@@ -123,8 +120,6 @@ function ProfissionalPage({ userName }: { userName: string }) {
                 especialidade: record.especialidade ?? "",
               });
               setEditingId(record.id);
-              setError("");
-              setSuccess("");
               listingPage.showForm();
             }}
             onDelete={(record) => void handleDelete(record)}

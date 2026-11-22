@@ -7,6 +7,8 @@ import useRecords from "../hooks/useRecords";
 import { clienteSchema } from "../schemas/schemas";
 import { getApiErrorMessage } from "../utils/apiError";
 import { formatDate, toDateInput } from "../utils/format";
+import { confirmSweetAlert } from "../components/sweetAlertConfirm";
+import { showSweetAlertMessage } from "../components/sweetAlertMessage";
 
 type Cliente = {
   id: number;
@@ -28,12 +30,10 @@ const emptyForm: ClienteForm = {
 };
 
 function ClientePage({ userName }: { userName: string }) {
-  const { records, isLoading, loadError, reload } = useRecords<Cliente>("/clients", false);
+  const { records, isLoading, reload } = useRecords<Cliente>("/clients", false);
   const listingPage = useListingPage("/clientes", reload);
   const [form, setForm] = useState<ClienteForm>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const columns = [
     { label: "ID", render: (record: Cliente) => record.id },
     { label: "Nome", render: (record: Cliente) => record.nome },
@@ -45,17 +45,13 @@ function ClientePage({ userName }: { userName: string }) {
   function resetForm() {
     setForm(emptyForm);
     setEditingId(null);
-    setError("");
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
-    setSuccess("");
-
     const validation = clienteSchema.safeParse(form);
     if (!validation.success) {
-      setError(validation.error.issues[0]?.message ?? "Dados inválidos.");
+      await showSweetAlertMessage(validation.error.issues[0]?.message ?? "Dados inválidos.", "error");
       return;
     }
 
@@ -70,38 +66,39 @@ function ClientePage({ userName }: { userName: string }) {
         await api.put(`/clients/${editingId}`, payload);
       }
 
-      setSuccess("Cliente salvo com sucesso.");
+      await showSweetAlertMessage("Cliente salvo com sucesso.", "success");
       resetForm();
       if (listingPage.isListing) await reload();
     } catch (requestError: unknown) {
-      setError(getApiErrorMessage(requestError, "Não foi possível salvar o cliente."));
+      await showSweetAlertMessage(
+        getApiErrorMessage(requestError, "Não foi possível salvar o cliente."),
+        "error",
+      );
     }
   }
 
   async function handleDelete(record: Cliente) {
-    if (!window.confirm(`Deseja excluir o cliente ${record.nome}?`)) {
+    if (!await confirmSweetAlert("Excluir cliente", `Deseja excluir o cliente ${record.nome}?`)) {
       return;
     }
 
-    setError("");
-    setSuccess("");
     try {
       await api.delete(`/clients/${record.id}`);
-      setSuccess("Cliente excluído com sucesso.");
+      await showSweetAlertMessage("Cliente excluído com sucesso.", "success");
       if (editingId === record.id) {
         resetForm();
       }
       if (listingPage.isListing) await reload();
     } catch (requestError: unknown) {
-      setError(getApiErrorMessage(requestError, "Não foi possível excluir o cliente."));
+      await showSweetAlertMessage(
+        getApiErrorMessage(requestError, "Não foi possível excluir o cliente."),
+        "error",
+      );
     }
   }
 
   return (
     <AdminPageLayout title="Clientes" userName={userName} activePath="/clientes">
-      {error && <div className="alert alert-danger">{error}</div>}
-      {loadError && <div className="alert alert-danger">{loadError}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
 
       {listingPage.isListing ? (
         <>
@@ -123,8 +120,6 @@ function ClientePage({ userName }: { userName: string }) {
                 contato: record.contato ?? "",
               });
               setEditingId(record.id);
-              setError("");
-              setSuccess("");
               listingPage.showForm();
             }}
             onDelete={(record) => void handleDelete(record)}
