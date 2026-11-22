@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const emailSchema = z.string().trim().toLowerCase().email("Informe um e-mail válido.");
+
 export function isCpfValid(cpf: string): boolean {
   if (!/^\d{11}$/.test(cpf) || /^(\d)\1{10}$/.test(cpf)) {
     return false;
@@ -23,13 +25,13 @@ export const cpfSchema = z
   .refine(isCpfValid, "Informe um CPF válido.");
 
 export const loginSchema = z.object({
-  email: z.string().trim().email("Informe um e-mail válido."),
+  email: emailSchema,
   password: z.string().min(1, "Informe a senha."),
 });
 
 export const signupSchema = z.object({
   name: z.string().trim().min(1, "Informe o nome."),
-  email: z.string().trim().email("Informe um e-mail válido."),
+  email: emailSchema,
   cpf: cpfSchema,
   password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres."),
   passwordConfirmation: z.string(),
@@ -64,7 +66,7 @@ export const profissionalSchema = z.object({
 
 export const usuarioSchema = z.object({
   name: z.string().trim().min(1, "Informe o nome."),
-  email: z.string().trim().email("Informe um e-mail válido."),
+  email: emailSchema,
   cpf: cpfSchema,
   password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres."),
   confirmarSenha: z.string(),

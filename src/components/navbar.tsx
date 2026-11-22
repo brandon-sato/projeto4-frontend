@@ -1,3 +1,5 @@
+import AppButton from "./appButton";
+
 const navigationItems = [
   { path: "/home", label: "Dashboard" },
   { path: "/categorias", label: "Categoria" },
@@ -40,9 +42,9 @@ function Navbar({ userName, activePath }: NavbarProps) {
         </nav>
         <div className="d-flex align-items-center gap-2 admin-account">
           <span>Olá, {userName}</span>
-          <button type="button" className="btn btn-link admin-logout" onClick={handleLogout}>
+          <AppButton variant="link" className="admin-logout" onClick={handleLogout}>
             Sair
-          </button>
+          </AppButton>
         </div>
       </div>
     </header>

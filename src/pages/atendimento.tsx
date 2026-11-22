@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Modal } from "react-bootstrap";
 import { api } from "../api/axios";
+import AppButton from "../components/appButton";
 import AdminPageLayout from "../components/adminPageLayout";
 import RecordTable from "../components/recordTable";
 import useListingPage from "../hooks/useListingPage";
@@ -292,9 +293,9 @@ function AtendimentoPage({ userName }: { userName: string }) {
       {listingPage.isListing ? (
         <>
           <div className="d-flex justify-content-end mb-3">
-            <button type="button" className="btn btn-primary" onClick={listingPage.showForm}>
+            <AppButton type="button" variant="primary" onClick={listingPage.showForm}>
               Voltar ao cadastro
-            </button>
+            </AppButton>
           </div>
           <RecordTable
             columns={columns}
@@ -323,13 +324,13 @@ function AtendimentoPage({ userName }: { userName: string }) {
                     value={selectedClient?.nome ?? ""}
                     placeholder="Nenhum cliente selecionado"
                   />
-                  <button
+                  <AppButton
                     type="button"
-                    className="btn btn-outline-primary"
+                    variant="outline-primary"
                     onClick={openClientModal}
                   >
                     Selecionar
-                  </button>
+                  </AppButton>
                 </div>
               </div>
               <div className="col-12 col-md-6">
@@ -385,16 +386,16 @@ function AtendimentoPage({ userName }: { userName: string }) {
             </div>
             <div className="d-flex justify-content-end gap-2 mt-4">
               {editingId !== null && (
-                <button type="button" className="btn btn-outline-secondary" onClick={resetForm}>
+                <AppButton type="button" variant="outline-secondary" onClick={resetForm}>
                   Cancelar edição
-                </button>
+                </AppButton>
               )}
-              <button type="button" className="btn btn-outline-primary" onClick={listingPage.showListing}>
+              <AppButton type="button" variant="outline-primary" onClick={listingPage.showListing}>
                 Listar
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+              </AppButton>
+              <AppButton type="submit" variant="primary" disabled={isSubmitting}>
                 {isSubmitting ? "Salvando..." : "Salvar registro"}
-              </button>
+              </AppButton>
             </div>
           </form>
         </div>
@@ -483,7 +484,7 @@ function AtendimentoPage({ userName }: { userName: string }) {
           {debouncedClientSearch.trim() !== "" && (
             <div className="list-group mt-2">
               {paginatedClientResults.length > 0 ? paginatedClientResults.map((client) => (
-                <button
+                <AppButton
                   type="button"
                   className="list-group-item list-group-item-action"
                   key={client.id}
@@ -494,7 +495,7 @@ function AtendimentoPage({ userName }: { userName: string }) {
                   <small className="text-secondary">
                     CPF: {client.cpf || "—"} | Nascimento: {formatDate(client.dt_nasc)}
                   </small>
-                </button>
+                </AppButton>
               )) : (
                 <div className="list-group-item text-secondary">
                   Nenhum cliente encontrado.
@@ -508,29 +509,29 @@ function AtendimentoPage({ userName }: { userName: string }) {
             <nav aria-label="Paginação dos clientes" className="me-auto">
               <ul className="pagination mb-0">
                 <li className={`page-item ${clientSearchPage === 1 ? "disabled" : ""}`}>
-                  <button
+                  <AppButton
                     type="button"
                     className="page-link"
                     onClick={() => setClientSearchPage((page) => Math.max(1, page - 1))}
                     disabled={clientSearchPage === 1}
                   >
                     Anterior
-                  </button>
+                  </AppButton>
                 </li>
                 {Array.from({ length: clientSearchPageCount }, (_, index) => index + 1).map((page) => (
                   <li className={`page-item ${clientSearchPage === page ? "active" : ""}`} key={page}>
-                    <button
+                    <AppButton
                       type="button"
                       className="page-link"
                       onClick={() => setClientSearchPage(page)}
                       aria-current={clientSearchPage === page ? "page" : undefined}
                     >
                       {page}
-                    </button>
+                    </AppButton>
                   </li>
                 ))}
                 <li className={`page-item ${clientSearchPage === clientSearchPageCount ? "disabled" : ""}`}>
-                  <button
+                  <AppButton
                     type="button"
                     className="page-link"
                     onClick={() => setClientSearchPage((page) =>
@@ -539,18 +540,18 @@ function AtendimentoPage({ userName }: { userName: string }) {
                     disabled={clientSearchPage === clientSearchPageCount}
                   >
                     Próxima
-                  </button>
+                  </AppButton>
                 </li>
               </ul>
             </nav>
           )}
-          <button
+          <AppButton
             type="button"
-            className="btn btn-outline-secondary"
+            variant="outline-secondary"
             onClick={() => setIsClientModalOpen(false)}
           >
             Fechar
-          </button>
+          </AppButton>
         </Modal.Footer>
       </Modal>
     </AdminPageLayout>

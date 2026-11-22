@@ -1,6 +1,9 @@
 import { useState, type FormEvent } from "react";
-import { Alert, Button, Card, Container, Form } from "react-bootstrap";
+import axios from "axios";
+import { Card, Container, Form } from "react-bootstrap";
 import { api } from "../api/axios";
+import AppButton from "../components/appButton";
+import { showSweetAlertMessage } from "../components/sweetAlertMessage";
 import { isCpfValid, signupSchema } from "../schemas/schemas";
 import { getApiErrorMessage } from "../utils/apiError";
 
@@ -8,16 +11,12 @@ function Cadastro() {
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [cpf, setCpf] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const passwordsDoNotMatch =
     passwordConfirmation.length > 0 && password !== passwordConfirmation;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setErrorMessage("");
-    setSuccessMessage("");
 
     const form = event.currentTarget;
     const formData = new FormData(form);
@@ -29,7 +28,10 @@ function Cadastro() {
       passwordConfirmation,
     });
     if (!validation.success) {
-      setErrorMessage(validation.error.issues[0]?.message ?? "Dados inválidos.");
+      await showSweetAlertMessage(
+        validation.error.issues[0]?.message ?? "Dados inválidos.",
+        "error",
+      );
       return;
     }
 
@@ -46,14 +48,19 @@ function Cadastro() {
       await api.post("/users", JSON.stringify(userData), {
         headers: { "Content-Type": "application/json" },
       });
-      setSuccessMessage("Usuário cadastrado com sucesso.");
+      await showSweetAlertMessage("Usuário cadastrado com sucesso.", "success");
       form.reset();
       setPassword("");
       setPasswordConfirmation("");
       setCpf("");
-      window.setTimeout(() => window.location.assign("/"), 1500);
+      window.location.assign("/");
     } catch (error: unknown) {
-      setErrorMessage(getApiErrorMessage(error, "Não foi possível cadastrar o usuário. Tente novamente."));
+      await showSweetAlertMessage(
+        axios.isAxiosError(error) && error.response?.status === 409
+          ? "Este e-mail já está cadastrado."
+          : getApiErrorMessage(error, "Não foi possível cadastrar o usuário. Tente novamente."),
+        "error",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -72,8 +79,6 @@ function Cadastro() {
           </Card.Header>
           <Card.Body>
             <h1 className="register-title">Novo usuário</h1>
-            {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}
-            {successMessage && <Alert variant="success">{successMessage}</Alert>}
 
             <Form onSubmit={handleSubmit}>
               <Form.Group controlId="registerName">
@@ -152,14 +157,14 @@ function Cadastro() {
                 )}
               </Form.Group>
 
-              <Button
+              <AppButton
                 className="login-button w-100 mt-3"
                 variant="success"
                 type="submit"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Cadastrando..." : "Cadastrar"}
-              </Button>
+              </AppButton>
             </Form>
 
             <a className="btn btn-outline-light w-100 mt-2" href="/">

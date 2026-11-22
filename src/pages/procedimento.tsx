@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { api } from "../api/axios";
+import AppButton from "../components/appButton";
 import AdminPageLayout from "../components/adminPageLayout";
 import RecordTable from "../components/recordTable";
 import useListingPage from "../hooks/useListingPage";
@@ -183,9 +184,9 @@ function ProcedimentoPage({ userName }: { userName: string }) {
       {listingPage.isListing ? (
         <>
           <div className="d-flex justify-content-end mb-3">
-            <button type="button" className="btn btn-primary" onClick={listingPage.showForm}>
+            <AppButton type="button" variant="primary" onClick={listingPage.showForm}>
               Voltar ao cadastro
-            </button>
+            </AppButton>
           </div>
           <RecordTable
             columns={columns}
@@ -289,16 +290,16 @@ function ProcedimentoPage({ userName }: { userName: string }) {
             </div>
             <div className="d-flex justify-content-end gap-2 mt-4">
               {editingId !== null && (
-                <button type="button" className="btn btn-outline-secondary" onClick={resetForm}>
+                <AppButton type="button" variant="outline-secondary" onClick={resetForm}>
                   Cancelar edição
-                </button>
+                </AppButton>
               )}
-              <button type="button" className="btn btn-outline-primary" onClick={listingPage.showListing}>
+              <AppButton type="button" variant="outline-primary" onClick={listingPage.showListing}>
                 Listar
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+              </AppButton>
+              <AppButton type="submit" variant="primary" disabled={isSubmitting}>
                 {isSubmitting ? "Salvando..." : "Salvar registro"}
-              </button>
+              </AppButton>
             </div>
           </form>
         </div>

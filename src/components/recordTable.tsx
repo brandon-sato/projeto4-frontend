@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import AppButton from "./appButton";
 
 const pageSize = 20;
 
@@ -65,22 +66,24 @@ function RecordTable<RecordType extends { id: number }>({
                     <td>
                       <div className="d-flex justify-content-center gap-2">
                         {(!canEdit || canEdit(record)) && (
-                          <button
+                          <AppButton
                             type="button"
-                            className="btn btn-sm btn-outline-primary"
+                            variant="outline-primary"
+                            size="sm"
                             onClick={() => onEdit(record)}
                           >
                             Editar
-                          </button>
+                          </AppButton>
                         )}
                         {(!canDelete || canDelete(record)) && (
-                          <button
+                          <AppButton
                             type="button"
-                            className="btn btn-sm btn-outline-danger"
+                            variant="outline-danger"
+                            size="sm"
                             onClick={() => onDelete(record)}
                           >
                             Excluir
-                          </button>
+                          </AppButton>
                         )}
                       </div>
                     </td>
@@ -98,24 +101,24 @@ function RecordTable<RecordType extends { id: number }>({
                 : `${firstRecordIndex + 1}-${Math.min(firstRecordIndex + pageSize, records.length)} de ${records.length}`}
             </span>
             <div className="d-flex gap-2">
-              <button
+              <AppButton
                 type="button"
-                className="btn btn-outline-primary"
+                variant="outline-primary"
                 aria-label="Mostrar os 20 registros anteriores"
                 onClick={() => setPage(currentPage - 1)}
                 disabled={currentPage === 0}
               >
                 ←
-              </button>
-              <button
+              </AppButton>
+              <AppButton
                 type="button"
-                className="btn btn-outline-primary"
+                variant="outline-primary"
                 aria-label="Mostrar os próximos 20 registros"
                 onClick={() => setPage(currentPage + 1)}
                 disabled={currentPage >= pageCount - 1}
               >
                 →
-              </button>
+              </AppButton>
             </div>
           </div>
         )}

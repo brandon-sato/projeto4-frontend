@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
-import { Alert, Button, Card, Container, Form } from "react-bootstrap";
+import { Alert, Card, Container, Form } from "react-bootstrap";
 import { api } from "../api/axios";
+import AppButton from "../components/appButton";
 import { loginSchema } from "../schemas/schemas";
 import { getApiErrorMessage } from "../utils/apiError";
 
@@ -76,14 +77,14 @@ function Login() {
                 />
               </Form.Group>
 
-              <Button
+              <AppButton
                 className="login-button w-100 mt-3"
                 variant="success"
                 type="submit"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Validando..." : "Efetuar Login"}
-              </Button>
+              </AppButton>
             </Form>
             <a className="btn btn-outline-light w-100 mt-2" href="/cadastro">
               Novo usuário
